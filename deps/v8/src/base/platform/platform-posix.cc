@@ -80,7 +80,8 @@
 #define MAP_ANONYMOUS MAP_ANON
 #endif
 
-#if defined(V8_OS_SOLARIS)
+/* NOTE: with illumos you must be on a distro built after April 20th, 2022. */
+#if defined(V8_OS_SOLARIS) && !defined(__illumos__)
 #if (defined(_POSIX_C_SOURCE) && _POSIX_C_SOURCE > 2) || defined(__EXTENSIONS__)
 extern "C" int madvise(caddr_t, size_t, int);
 #else
