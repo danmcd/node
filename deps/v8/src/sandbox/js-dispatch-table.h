@@ -75,6 +75,14 @@ struct JSDispatchEntry {
   static constexpr uintptr_t kCodeObjectOffset = kSystemPointerSize;
   static constexpr size_t kParameterCountSize = 2;
 
+#ifdef __PASE__
+  static constexpr uintptr_t kObjectPointerOffset = 0x0700000000000000;
+#elif defined(_AIX)
+  static constexpr uintptr_t kObjectPointerOffset = 0x0a00000000000000;
+#else
+  static constexpr uintptr_t kObjectPointerOffset = 0;
+#endif
+
 #if defined(V8_TARGET_ARCH_64_BIT)
   // Freelist entries contain the index of the next free entry in their lower 32
   // bits and are tagged with this tag.
