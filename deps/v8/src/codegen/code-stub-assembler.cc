@@ -1944,7 +1944,16 @@ TNode<Code> CodeStubAssembler::LoadCodeObjectFromJSDispatchTable(
   TNode<UintPtrT> shifted_value;
   if (JSDispatchEntry::kObjectPointerOffset == 0) {
     shifted_value =
+#if defined(__illumos__) && defined(V8_HOST_ARCH_64_BIT)
+    // Pointers in illumos span both the low 2^47 range and the high 2^47 range
+    // as well. Checking the high bit being set in illumos means all higher bits
+    // need to be set to 1 after shifting right.
+    // Try WordSar() so any high-bit check wouldn't be necessary.
+        UncheckedCast<UintPtrT>(WordSar(UncheckedCast<IntPtrT>(value),
+          IntPtrConstant(JSDispatchEntry::kObjectPointerShift)));
+#else
         WordShr(value, UintPtrConstant(JSDispatchEntry::kObjectPointerShift));
+#endif /* __illumos__ */
   } else {
     shifted_value = UintPtrAdd(
         WordShr(value, UintPtrConstant(JSDispatchEntry::kObjectPointerShift)),
