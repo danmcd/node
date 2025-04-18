@@ -1938,6 +1938,19 @@ TNode<Code> CodeStubAssembler::LoadCodeObjectFromJSDispatchTable(
   offset =
       UintPtrAdd(offset, UintPtrConstant(JSDispatchEntry::kCodeObjectOffset));
   TNode<UintPtrT> value = Load<UintPtrT>(table, offset);
+#if defined(__illumos__) && defined(V8_HOST_ARCH_64_BIT)
+  // Pointers in illumos span both the low 2^47 range and the high 2^47 range as
+  // well. Checking the high bit being set in illumos means all higher bits
+  // need to be set to 1 after shifting right.
+  // If we could've convinced WordShr() to be sign-aware somehow, this extra
+  // check wouldn't be necessary.
+  if (value >= UintPtrConstant(0x8000000000000000ull)) {
+    value = UncheckedCast<UintPtrT>(WordOr(
+    WordShr(value, UintPtrConstant(JSDispatchEntry::kObjectPointerShift)),
+    UintPtrConstant(kHeapObjectTag | 0xffff000000000000ull)));
+  }
+  else	// Fallthrough, it's from below the VA hole, and existing code works.
+#endif /* __illumos__ */
   // The LSB is used as marking bit by the js dispatch table, so here we have
   // to set it using a bitwise OR as it may or may not be set.
   value = UncheckedCast<UintPtrT>(WordOr(
