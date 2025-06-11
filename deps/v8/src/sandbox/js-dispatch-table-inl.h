@@ -23,17 +23,6 @@ void JSDispatchEntry::MakeJSDispatchEntry(Address object, Address entrypoint,
                                           uint16_t parameter_count,
                                           bool mark_as_alive) {
   DCHECK_EQ(object & kHeapObjectTag, 0);
-#if defined(__illumos__) && defined(V8_TARGET_ARCH_64_BIT)
-  // See VA hole discussion in js-dispatch-table.h
-  if (((uintptr_t)object >> 47) != 0) {
-	  // Above VA hole.
-	  // If illumos changes the VA hole, this may have to be revisited.
-	  CHECK_EQ((object & 0xffff800000000000ull), 0xffff800000000000ull);
-  } // Else implies addr is below the VA hole.
-
-  Address payload = (object << kObjectPointerShift) |
-	  (parameter_count & kParameterCountMask);
-#else
   DCHECK_EQ((((object - kObjectPointerOffset) << kObjectPointerShift) >>
              kObjectPointerShift) +
                 kObjectPointerOffset,
@@ -44,7 +33,6 @@ void JSDispatchEntry::MakeJSDispatchEntry(Address object, Address entrypoint,
 
   Address payload = ((object - kObjectPointerOffset) << kObjectPointerShift) |
                     (parameter_count & kParameterCountMask);
-#endif /* __illumos__ 64-bit */
   DCHECK(!(payload & kMarkingBit));
   if (mark_as_alive) payload |= kMarkingBit;
 #ifdef V8_TARGET_ARCH_32_BIT
@@ -67,14 +55,6 @@ Address JSDispatchEntry::GetCodePointer() const {
   // and so may be 0 or 1 here. As the return value is a tagged pointer, the
   // bit must be 1 when returned, so we need to set it here.
   Address payload = encoded_word_.load(std::memory_order_relaxed);
-#if defined(__illumos__) && defined(V8_TARGET_ARCH_64_BIT)
-  // illumos has two values for the higher bits, aka kObjectPointerOffset.
-  // Lucky us, they are determined by the value of the highest bit in payload,
-  // and one of them (below the VA hole) is 0.
-  if (payload < 0x8000000000000000)
-	  return ((payload >> kObjectPointerShift) | kHeapObjectTag);
-  // Else we continue, and the pointer is above the VA hole.
-#endif /* __illumos__ */
   return ((payload >> kObjectPointerShift) + kObjectPointerOffset) |
          kHeapObjectTag;
 }
@@ -203,22 +183,11 @@ void JSDispatchEntry::SetCodeAndEntrypointPointer(Address new_object,
   Address old_payload = encoded_word_.load(std::memory_order_relaxed);
   Address marking_bit = old_payload & kMarkingBit;
   Address parameter_count = old_payload & kParameterCountMask;
-#if defined(__illumos__) && defined(V8_TARGET_ARCH_64_BIT)
-  // See VA hole discussion in js-dispatch-table.h
-  if (((uintptr_t)new_object >> 47) != 0) {
-	  // Above VA hole.
-	  // If illumos changes the VA hole, this may have to be revisited.
-	  CHECK_EQ((new_object & 0xffff800000000000ull), 0xffff800000000000ull);
-  } // Else implies addr is below the VA hole.
-
-  Address object = (new_object << kObjectPointerShift) & ~kMarkingBit;
-#else
   // We want to preserve the marking bit of the entry. Since that happens to
   // be the tag bit of the pointer, we need to explicitly clear it here.
   Address object =
       ((new_object - kObjectPointerOffset) << kObjectPointerShift) &
       ~kMarkingBit;
-#endif /* __illumos__ 64-bit */
   Address new_payload = object | marking_bit | parameter_count;
   encoded_word_.store(new_payload, std::memory_order_relaxed);
   entrypoint_.store(new_entrypoint, std::memory_order_relaxed);
@@ -245,12 +214,7 @@ void JSDispatchEntry::MakeFreelistEntry(uint32_t next_entry_index) {
 bool JSDispatchEntry::IsFreelistEntry() const {
 #ifdef V8_TARGET_ARCH_64_BIT
   auto entrypoint = entrypoint_.load(std::memory_order_relaxed);
-#ifdef __illumos__
-  // See the illumos definition of kFreeEntryTag for why we have to do this.
-  return (entrypoint & 0xffff000000000000) == kFreeEntryTag;
-#else
   return (entrypoint & kFreeEntryTag) == kFreeEntryTag;
-#endif /* __illumos__ */
 #else
   return next_free_entry_.load(std::memory_order_relaxed) != 0;
 #endif

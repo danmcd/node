@@ -1995,14 +1995,6 @@ TNode<Code> CodeStubAssembler::LoadCodeObjectFromJSDispatchTable(
     shifted_value =
         WordShr(value, UintPtrConstant(JSDispatchEntry::kObjectPointerShift));
   } else {
-#if defined(__illumos__) && defined(V8_HOST_ARCH_64_BIT)
-    // See VA hole discussion in js-dispatch-table.h
-    if (value < UintPtrConstant(0x8000000000000000ull)) // Below the VA hole
-       // I hope WordShr is unsigned...
-       shifted_value = WordShr(value,
-         UintPtrConstant(JSDispatchEntry::kObjectPointerShift));
-    else
-#endif /* __illumos__ */
     shifted_value = UintPtrAdd(
         WordShr(value, UintPtrConstant(JSDispatchEntry::kObjectPointerShift)),
         UintPtrConstant(JSDispatchEntry::kObjectPointerOffset));

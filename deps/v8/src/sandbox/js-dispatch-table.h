@@ -83,20 +83,6 @@ struct JSDispatchEntry {
   static constexpr uintptr_t kObjectPointerOffset = 0x0700000000000000;
 #elif defined(_AIX)
   static constexpr uintptr_t kObjectPointerOffset = 0x0a00000000000000;
-#elif defined(__illumos__) && defined(V8_TARGET_ARCH_64_BIT)
-  // In illumos 64-bit apps, pointers are allocated from two sides of a
-  // Virtual Address hole (VA hole).  The VA hole spans 0x800000000000 to
-  // 0xffff7fffffffffff.  This means addresses either have 0xffff in the
-  // high-16-bits, or 0 in it.  If 0, we wanna be like all of the
-  // other implementations or like an Oracle Solaris app linked with a VA47
-  // mapfile (illumos may offer a VA47 someday, but not currently, and not
-  // in older illumos distro versions).
-  //
-  // So we keep the 0xffff as our "kObjectPointerOffset", that way if we detect
-  // the 48th bit set (0x800000000000) we know to use it, or else we use 0.
-  // This will change, of course, if the VA hole ever shrinks, say to accomodate
-  // amd64 5-level paging.
-  static constexpr uintptr_t kObjectPointerOffset = 0xffff000000000000;
 #else
   static constexpr uintptr_t kObjectPointerOffset = 0;
 #endif
@@ -104,12 +90,7 @@ struct JSDispatchEntry {
 #if defined(V8_TARGET_ARCH_64_BIT)
   // Freelist entries contain the index of the next free entry in their lower 32
   // bits and are tagged with this tag.
-#ifdef __illumos__
-  // illumos pointers may have 0xffff in them!!!
-  static constexpr Address kFreeEntryTag = 0xfeed000000000000ull;
-#else
   static constexpr Address kFreeEntryTag = 0xffff000000000000ull;
-#endif /* __illumos__ */
 #ifdef V8_TARGET_BIG_ENDIAN
   // 2-byte parameter count is on the least significant side of encoded_word_.
   static constexpr int kBigEndianParamCountOffset =
